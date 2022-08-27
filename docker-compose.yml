@@ -1,0 +1,58 @@
+
+version: "3.2"
+
+volumes:
+    postgres_data:
+        driver: local
+    rabbitmq_data:
+      driver: local
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    volumes:
+        - postgres_data:/var/lib/postgresql/data
+    command: postgres -c wal_level=logical
+    ports:
+        - "5432:5432"
+    environment:
+        POSTGRES_DB: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: password
+
+  rabbitmq:
+    image: docker.io/bitnami/rabbitmq:3.10
+    ports:
+      - '4369:4369'
+      - '5551:5551'
+      - '5552:5552'
+      - '5672:5672'
+      - '25672:25672'
+      - '15672:15672'
+    environment:
+      - RABBITMQ_SECURE_PASSWORD=yes
+      - RABBITMQ_LOGS=-
+    volumes:
+      - 'rabbitmq_data:/bitnami/rabbitmq/mnesia'
+
+  keycloak:
+    image: prebuilt_keycloak:latest
+    container_name: keycloak
+    command: start --optimized
+    environment:
+        KEYCLOAK_ADMIN: admin
+        KEYCLOAK_ADMIN_PASSWORD: password123
+        PROXY_ADDRESS_FORWARDING: "true"
+        KK_TO_RMQ_URL: rabbitmq
+        KK_TO_RMQ_PORT: 5672
+        KK_TO_RMQ_VHOST: empty
+        KK_TO_RMQ_EXCHANGE: amq.topic
+        KK_TO_RMQ_USERNAME: guest
+        KK_TO_RMQ_PASSWORD: guest
+        KK_TO_RMQ_USE_TLS: false
+    ports:
+        - 8083:8080
+    depends_on:
+        - postgres
+        - rabbitmq
