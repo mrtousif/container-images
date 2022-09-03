@@ -32,6 +32,7 @@ services:
         RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
         RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
         RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+        RABBITMQ_DEFAULT_VHOST: DSrabbitmq
     ports:
         - 5672:5672
         - 15672:15672
@@ -58,15 +59,15 @@ services:
         DB_PASSWORD: password
         KK_TO_RMQ_URL: rabbitmq
         KK_TO_RMQ_PORT: 5672
-        KK_TO_RMQ_VHOST: empty
+        KK_TO_RMQ_VHOST: DSrabbitmq
         KK_TO_RMQ_EXCHANGE: amq.topic
         KK_TO_RMQ_USERNAME: rabbit
         KK_TO_RMQ_PASSWORD: rabbit
         KK_TO_RMQ_USE_TLS: false
     ports:
         - 8083:8080
-    # networks:
-    #     - rabbitmq_net
+    networks:
+        - rabbitmq_net
     depends_on:
         - postgres
         - rabbitmq
