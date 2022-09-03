@@ -1,11 +1,15 @@
 
-version: "3.2"
+version: "3"
 
 volumes:
     postgres_data:
         driver: local
     rabbitmq_data:
-      driver: local
+    rabbitmq_log:
+
+networks:
+    rabbitmq_net:
+        driver: bridge
 
 services:
   postgres:
@@ -22,37 +26,47 @@ services:
         POSTGRES_PASSWORD: password
 
   rabbitmq:
-    image: docker.io/bitnami/rabbitmq:3.10
-    ports:
-      - '4369:4369'
-      - '5551:5551'
-      - '5552:5552'
-      - '5672:5672'
-      - '25672:25672'
-      - '15672:15672'
+    image: rabbitmq:3.9-management
+    hostname: rabbitmq
     environment:
-      - RABBITMQ_SECURE_PASSWORD=yes
-      - RABBITMQ_LOGS=-
+        RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+        RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+        RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+        - 5672:5672
+        - 15672:15672
     volumes:
-      - 'rabbitmq_data:/bitnami/rabbitmq/mnesia'
+        - rabbitmq_data:/var/lib/rabbitmq/
+        - rabbitmq_log:/var/log/rabbitmq/
+    networks:
+        - rabbitmq_net
 
   keycloak:
-    image: prebuilt_keycloak:latest
+    build:
+      context: ./keycloak
+      dockerfile: Dockerfile
     container_name: keycloak
     command: start --optimized
     environment:
         KEYCLOAK_ADMIN: admin
         KEYCLOAK_ADMIN_PASSWORD: password123
-        PROXY_ADDRESS_FORWARDING: "true"
+        # PROXY_ADDRESS_FORWARDING: "true"
+        # DB_VENDOR: POSTGRES
+        # DB_ADDR: postgres
+        # DB_DATABASE: postgres
+        # DB_USER: postgres
+        # DB_PASSWORD: password
         KK_TO_RMQ_URL: rabbitmq
         KK_TO_RMQ_PORT: 5672
         KK_TO_RMQ_VHOST: empty
         KK_TO_RMQ_EXCHANGE: amq.topic
-        KK_TO_RMQ_USERNAME: guest
-        KK_TO_RMQ_PASSWORD: guest
+        KK_TO_RMQ_USERNAME: rabbit
+        KK_TO_RMQ_PASSWORD: rabbit
         KK_TO_RMQ_USE_TLS: false
     ports:
         - 8083:8080
+    # networks:
+    #     - rabbitmq_net
     depends_on:
         - postgres
         - rabbitmq
