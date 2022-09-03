@@ -46,16 +46,16 @@ services:
       context: ./keycloak
       dockerfile: Dockerfile
     container_name: keycloak
-    command: start --optimized
+    command: start-dev
     environment:
         KEYCLOAK_ADMIN: admin
         KEYCLOAK_ADMIN_PASSWORD: password123
-        # PROXY_ADDRESS_FORWARDING: "true"
+        KC_PROXY: "passthrough"
         # DB_VENDOR: POSTGRES
-        # DB_ADDR: postgres
-        # DB_DATABASE: postgres
-        # DB_USER: postgres
-        # DB_PASSWORD: password
+        DB_ADDR: postgres
+        DB_DATABASE: postgres
+        DB_USER: postgres
+        DB_PASSWORD: password
         KK_TO_RMQ_URL: rabbitmq
         KK_TO_RMQ_PORT: 5672
         KK_TO_RMQ_VHOST: empty
