@@ -26,7 +26,7 @@ services:
         POSTGRES_PASSWORD: password
 
   rabbitmq:
-    image: rabbitmq:3.10-management
+    image: rabbitmq:3.11-management
     hostname: rabbitmq
     environment:
         RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
