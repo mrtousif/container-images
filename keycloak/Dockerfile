@@ -1,4 +1,4 @@
-FROM quay.io/keycloak/keycloak:20.0.1 as builder
+FROM quay.io/keycloak/keycloak:21.0.1 as builder
 
 ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=true
@@ -11,7 +11,7 @@ RUN curl -sL https://github.com/aznamier/keycloak-event-listener-rabbitmq/releas
 
 RUN /opt/keycloak/bin/kc.sh build
 
-FROM quay.io/keycloak/keycloak:20.0.1
+FROM quay.io/keycloak/keycloak:21.0.1
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 WORKDIR /opt/keycloak
 
