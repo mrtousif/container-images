@@ -96,6 +96,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        fi \
     # postgresql_anonymizer extension
     && pgxn install ddlx && pgxn install postgresql_anonymizer \
+    # pgMemento
+    && pgxn install pgmemento \
     # pg_stat_kcache extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-stat-kcache \
     # pg_wait_sampling extension
@@ -115,6 +117,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        && chown postgres:postgres /var/lib/postgresql/.ssh \
     # pgx_ulid
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.70.0 \
+        && source "$HOME/.cargo/env" \
         && cargo install cargo-pgrx --version 0.9.7 --locked \
         && cargo pgrx init --pg${PG_SERVER_VERSION} $(which pg_config) \
         && cd /tmp && git clone https://github.com/pksunkara/pgx_ulid.git && cd pgx_ulid \
