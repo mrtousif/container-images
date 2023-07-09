@@ -1,4 +1,3 @@
-
 version: "3"
 
 volumes:
@@ -12,62 +11,32 @@ networks:
         driver: bridge
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    volumes:
-        - postgres_data:/var/lib/postgresql/data
-    command: postgres -c wal_level=logical
-    ports:
-        - "5432:5432"
-    environment:
-        POSTGRES_DB: postgres
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: password
+    postgres:
+        image: postgres:15-alpine
+        restart: unless-stopped
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        command: postgres -c wal_level=logical
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_DB: postgres
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
 
-  rabbitmq:
-    image: rabbitmq:3.11-management
-    hostname: rabbitmq
-    environment:
-        RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
-        RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-        RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-        RABBITMQ_DEFAULT_VHOST: DSrabbitmq
-    ports:
-        - 5672:5672
-        - 15672:15672
-    volumes:
-        - rabbitmq_data:/var/lib/rabbitmq/
-        - rabbitmq_log:/var/log/rabbitmq/
-    networks:
-        - rabbitmq_net
-
-  keycloak:
-    build:
-      context: ./keycloak
-      dockerfile: Dockerfile
-    container_name: keycloak
-    command: start-dev
-    environment:
-        KEYCLOAK_ADMIN: admin
-        KEYCLOAK_ADMIN_PASSWORD: password123
-        KC_PROXY: "passthrough"
-        # DB_VENDOR: POSTGRES
-        DB_ADDR: postgres
-        DB_DATABASE: postgres
-        DB_USER: postgres
-        DB_PASSWORD: password
-        KK_TO_RMQ_URL: rabbitmq
-        KK_TO_RMQ_PORT: 5672
-        KK_TO_RMQ_VHOST: DSrabbitmq
-        KK_TO_RMQ_EXCHANGE: amq.topic
-        KK_TO_RMQ_USERNAME: rabbit
-        KK_TO_RMQ_PASSWORD: rabbit
-        KK_TO_RMQ_USE_TLS: false
-    ports:
-        - 8083:8080
-    networks:
-        - rabbitmq_net
-    depends_on:
-        - postgres
-        - rabbitmq
+    rabbitmq:
+        image: rabbitmq:3.11-management
+        hostname: rabbitmq
+        environment:
+            RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+            RABBITMQ_DEFAULT_VHOST: DSrabbitmq
+        ports:
+            - 5672:5672
+            - 15672:15672
+        volumes:
+            - rabbitmq_data:/var/lib/rabbitmq/
+            - rabbitmq_log:/var/log/rabbitmq/
+        networks:
+            - rabbitmq_net
