@@ -114,11 +114,11 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        && mkdir -p -m 700 /var/lib/postgresql/.ssh \
        && chown postgres:postgres /var/lib/postgresql/.ssh \
     # pgx_ulid
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.70.0 && \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.70.0 \
         && cargo install cargo-pgrx --version 0.9.7 --locked \
         && cargo pgrx init --pg${PG_SERVER_VERSION} $(which pg_config) \
         && cd /tmp && git clone https://github.com/pksunkara/pgx_ulid.git && cd pgx_ulid \
-        && cargo pgrx install -r \
+        && cargo pgrx install -r && cd .. \
     # remove all auxilary packages to reduce final image size
     && cd / && rm -rf /tmp/* && apt-get purge -y --auto-remove \
        gcc make wget unzip curl libc6-dev apt-transport-https git \
