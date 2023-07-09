@@ -1,7 +1,7 @@
 # Debian 11 (bullseye) has glibc 2.31.
 # If you are using "physical" mode, please check the glibc version in your production database system to avoid potential index corruption.
 # You should have the same version of glibc as in your Docker image.
-
+# https://gitlab.com/postgres-ai/custom-images/-/blob/master/extended-postgres/Dockerfile
 ARG PG_SERVER_VERSION=15
 
 # build-env
@@ -34,7 +34,6 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
 
 # Build the extended image
 FROM postgres:${PG_SERVER_VERSION}-bullseye
-LABEL maintainer="postgres.ai"
 
 COPY --from=build-env /usr/local/bin/wal-g /usr/local/bin/wal-g
 
@@ -83,11 +82,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
       fi \
     # hll extension
     && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-hll \
-    # topn extension
-    && if [ $(echo "$PG_SERVER_VERSION > 9.6" | /usr/bin/bc) = "1" ]; then \
-         curl -s https://install.citusdata.com/community/deb.sh | bash \
-         && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-topn; \
-       fi \
+    # px_ulid
+    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && dpkg -i pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && rm -rf pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
     # pg_show_plans extension
     && if [ $(echo "$PG_SERVER_VERSION > 11" | /usr/bin/bc) = "1" ]; then \
          cd /tmp && git clone https://github.com/cybertec-postgresql/pg_show_plans.git \
@@ -98,6 +96,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     && pgxn install ddlx && pgxn install postgresql_anonymizer \
     # pgMemento
     && pgxn install pgmemento \
+    # pg_partman
+    && pgxn install pg_partman \
     # pg_stat_kcache extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-stat-kcache \
     # pg_wait_sampling extension
@@ -115,13 +115,6 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        pgbackrest zstd openssh-client \
        && mkdir -p -m 700 /var/lib/postgresql/.ssh \
        && chown postgres:postgres /var/lib/postgresql/.ssh \
-    # pgx_ulid
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.70.0 \
-        && source "$HOME/.cargo/env" \
-        && cargo install cargo-pgrx --version 0.9.7 --locked \
-        && cargo pgrx init --pg${PG_SERVER_VERSION} $(which pg_config) \
-        && cd /tmp && git clone https://github.com/pksunkara/pgx_ulid.git && cd pgx_ulid \
-        && cargo pgrx install -r && cd .. \
     # remove all auxilary packages to reduce final image size
     && cd / && rm -rf /tmp/* && apt-get purge -y --auto-remove \
        gcc make wget unzip curl libc6-dev apt-transport-https git \
