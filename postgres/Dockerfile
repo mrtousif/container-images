@@ -1,11 +1,12 @@
 # Debian 11 (bullseye) has glibc 2.31.
+# Debian 12 (bookworm) has glibc 2.33.
 # If you are using "physical" mode, please check the glibc version in your production database system to avoid potential index corruption.
 # You should have the same version of glibc as in your Docker image.
 # https://gitlab.com/postgres-ai/custom-images/-/blob/master/extended-postgres/Dockerfile
 ARG PG_SERVER_VERSION=15
 
 # build-env
-FROM postgres:${PG_SERVER_VERSION}-bullseye as build-env
+FROM postgres:${PG_SERVER_VERSION}-bookworm as build-env
 
 ARG TARGETPLATFORM
 
@@ -33,7 +34,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
 
 
 # Build the extended image
-FROM postgres:${PG_SERVER_VERSION}-bullseye
+FROM postgres:${PG_SERVER_VERSION}-bookworm
 
 COPY --from=build-env /usr/local/bin/wal-g /usr/local/bin/wal-g
 
