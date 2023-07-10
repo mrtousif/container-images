@@ -105,7 +105,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-wait-sampling \
     # pg_qualstats extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-qualstats \
-    # bg_mon extension
+    # wal2json extension
+    && apt-get install postgresql-${PG_SERVER_VERSION}-wal2json \
+  # bg_mon extension
     && apt-get install -y libevent-dev libbrotli-dev \
       && cd /tmp && git clone https://github.com/CyberDem0n/bg_mon.git && cd bg_mon \
       && USE_PGXS=1 make && USE_PGXS=1 make install && cd .. \
