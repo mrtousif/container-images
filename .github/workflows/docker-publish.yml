@@ -1,4 +1,4 @@
-name: Docker Publish
+name: Docker Publish Postgres
 
 on:
     # schedule:
@@ -7,9 +7,10 @@ on:
         branches: ["main"]
         paths:
             - "postgres/**"
-        # Publish semver tags as releases.
-        tags: ["v*.*.*"]
+        tags: ["v*"]
     pull_request:
+        paths:
+            - "postgres/**"
         branches: ["main"]
 
     workflow_dispatch:
@@ -17,9 +18,7 @@ on:
 env:
     # Use docker.io for Docker Hub if empty
     REGISTRY: ghcr.io
-    # github.repository as <account>/<repo>
     IMAGE_NAME: postgres
-# ${{ github.repository }}
 
 jobs:
     build:
@@ -36,3 +35,4 @@ jobs:
                   password: ${{ secrets.GITHUB_TOKEN }}
                   registry: ${{ env.REGISTRY }}
                   workdir: postgres
+                  tags: "latest,15-bookworm"
