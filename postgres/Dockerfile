@@ -65,10 +65,6 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     && apt-get install --no-install-recommends -y postgresql-server-dev-${PG_SERVER_VERSION} \
     # plpython3 (procedural language implementation for Python 3.x)
     && apt-get install --no-install-recommends -y postgresql-plpython3-${PG_SERVER_VERSION} \
-    # amcheck extension; not included in contrib for Postgres 9.6
-    && if [ "${PG_SERVER_VERSION}" = "9.6" ]; then \
-         apt-get install --no-install-recommends -y postgresql-9.6-amcheck; \
-       fi \
     # pg_repack extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-repack \
     # hypopg extension
@@ -135,6 +131,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
          && tar -xf logerrors.tar.gz && rm logerrors.tar.gz && cd logerrors-${LOGERRORS_VERSION} \
          && USE_PGXS=1 make && USE_PGXS=1 make install; \
        fi \
+    # px_ulid
+    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && dpkg -i pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && rm -rf pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
     # pgBackRest
     && apt-get install --no-install-recommends -y \
        pgbackrest zstd openssh-client \
