@@ -41,6 +41,19 @@ COPY --from=build-env /usr/local/bin/wal-g /usr/local/bin/wal-g
 ARG PG_SERVER_VERSION
 ENV PG_SERVER_VERSION=${PG_SERVER_VERSION:-15}
 
+ARG PG_UNIX_SOCKET_DIR
+ENV PG_UNIX_SOCKET_DIR=${PG_UNIX_SOCKET_DIR:-"/var/run/postgresql"}
+
+ARG PG_SERVER_PORT
+ENV PG_SERVER_PORT=${PG_SERVER_PORT:-5432}
+
+ARG PG_TIMETABLE_VERSION
+ENV PG_TIMETABLE_VERSION=${PG_TIMETABLE_VERSION:-5.3.0}
+ARG SET_USER_VERSION
+ENV SET_USER_VERSION=${SET_USER_VERSION:-REL4_0_1}
+ARG LOGERRORS_VERSION
+ENV LOGERRORS_VERSION=${LOGERRORS_VERSION:-2.1.2}
+
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     # remove the "beta" and "rc" suffix in the PG_SERVER_VERSION variable (if exists)
@@ -50,10 +63,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        curl libc6-dev apt-transport-https ca-certificates pgxnclient bc \
        build-essential libssl-dev krb5-multidev libkrb5-dev lsb-release apt-utils \
     && apt-get install --no-install-recommends -y postgresql-server-dev-${PG_SERVER_VERSION} \
-    # amcheck extension; not included in contrib for Postgres 9.6
-    && if [ "${PG_SERVER_VERSION}" = "9.6" ]; then \
-         apt-get install --no-install-recommends -y postgresql-9.6-amcheck; \
-       fi \
+    # plpython3 (procedural language implementation for Python 3.x)
+    && apt-get install --no-install-recommends -y postgresql-plpython3-${PG_SERVER_VERSION} \
     # pg_repack extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-repack \
     # hypopg extension
@@ -83,10 +94,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
       fi \
     # hll extension
     && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-hll \
-    # px_ulid
-    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
-      && dpkg -i pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
-      && rm -rf pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+    # pg_timetable extension
+    && wget https://github.com/cybertec-postgresql/pg_timetable/releases/download/v${PG_TIMETABLE_VERSION}/pg_timetable_${PG_TIMETABLE_VERSION}_Linux_x86_64.deb \
+      && dpkg -i pg_timetable_${PG_TIMETABLE_VERSION}_Linux_x86_64.deb \
+      && rm -rf pg_timetable_${PG_TIMETABLE_VERSION}_Linux_x86_64.deb \
     # pg_show_plans extension
     && if [ $(echo "$PG_SERVER_VERSION > 11" | /usr/bin/bc) = "1" ]; then \
          cd /tmp && git clone https://github.com/cybertec-postgresql/pg_show_plans.git \
@@ -105,14 +116,25 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-wait-sampling \
     # pg_qualstats extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-qualstats \
-    # wal2json extension
-    && apt-get install postgresql-${PG_SERVER_VERSION}-wal2json \
-  # bg_mon extension
+    # bg_mon extension
     && apt-get install -y libevent-dev libbrotli-dev \
       && cd /tmp && git clone https://github.com/CyberDem0n/bg_mon.git && cd bg_mon \
       && USE_PGXS=1 make && USE_PGXS=1 make install && cd .. \
     # pgextwlist extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pgextwlist \
+    # set_user extension
+    && cd /tmp && git clone https://github.com/pgaudit/set_user.git \
+      && cd set_user && git checkout ${SET_USER_VERSION} && make USE_PGXS=1 && make USE_PGXS=1 install \
+    # logerrors extension
+    && if [ $(echo "$PG_SERVER_VERSION > 9.6" | /usr/bin/bc) = "1" ]; then \
+         cd /tmp && wget -O logerrors.tar.gz https://github.com/munakoiso/logerrors/archive/v${LOGERRORS_VERSION}.tar.gz \
+         && tar -xf logerrors.tar.gz && rm logerrors.tar.gz && cd logerrors-${LOGERRORS_VERSION} \
+         && USE_PGXS=1 make && USE_PGXS=1 make install; \
+       fi \
+    # px_ulid
+    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && dpkg -i pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+      && rm -rf pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
     # pgBackRest
     && apt-get install --no-install-recommends -y \
        pgbackrest zstd openssh-client \
@@ -127,15 +149,15 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     && apt-get clean -y autoclean \
     && rm -rf /var/lib/apt/lists/* \
     # remove standard pgdata
-    && rm -rf /var/lib/postgresql/${PG_SERVER_VERSION}/ 
+    && rm -rf /var/lib/postgresql/${PG_SERVER_VERSION}/
 
-EXPOSE 5432
+EXPOSE ${PG_SERVER_PORT}
 
 # Prepare Postgres start script
 RUN echo "#!/bin/bash" > /pg_start.sh && chmod a+x /pg_start.sh \
-    && echo "chown -R postgres:postgres \${PGDATA} /var/run/postgresql" \
+    && echo "chown -R postgres:postgres \${PGDATA} \${PG_UNIX_SOCKET_DIR}" \
       >> /pg_start.sh \
-    && printf "sudo -Eu postgres /usr/lib/postgresql/$(echo ${PG_SERVER_VERSION} | sed 's/beta.*//' | sed 's/rc.*//')/bin/postgres -D \${PGDATA} >& /proc/1/fd/1 \n" \
+    && printf "sudo -Eu postgres /usr/lib/postgresql/$(echo ${PG_SERVER_VERSION} | sed 's/beta.*//' | sed 's/rc.*//')/bin/postgres -D \${PGDATA} -k \${PG_UNIX_SOCKET_DIR}  -p \${PG_SERVER_PORT} >& /proc/1/fd/1 \n" \
       >> /pg_start.sh \
     # Infinite sleep to allow restarting Postgres
     && echo "/bin/bash -c \"trap : TERM INT; sleep infinity & wait\"" \
