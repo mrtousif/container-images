@@ -1,0 +1,37 @@
+name: Docker Publish dev-container
+
+on:
+    # schedule:
+    #   - cron: '34 22 * * *'
+    push:
+        branches: ["main"]
+        paths:
+            - "dev-container/**"
+        tags: ["v*"]
+    pull_request:
+        paths:
+            - "dev-container/**"
+        branches: ["main"]
+
+    workflow_dispatch:
+
+env:
+    # Use docker.io for Docker Hub if empty
+    REGISTRY: ghcr.io
+    IMAGE_NAME: dev-container
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Publish to Registry
+              uses: elgohr/Publish-Docker-Github-Action@v5
+              with:
+                  name: mrtousif/dev-container:20
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+                  registry: ${{ env.REGISTRY }}
+                  workdir: dev-container
