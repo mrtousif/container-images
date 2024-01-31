@@ -3,7 +3,7 @@
 DEVSPACE_VERSION="latest"
 
 
-npm install -g pnpm
+npm install -g pnpm tsx taze
 
 ARCH_SHORT="arm64"
 ARCH=$(arch)

@@ -3,7 +3,7 @@
 # If you are using "physical" mode, please check the glibc version in your production database system to avoid potential index corruption.
 # You should have the same version of glibc as in your Docker image.
 # https://gitlab.com/postgres-ai/custom-images/-/blob/master/extended-postgres/Dockerfile
-ARG PG_SERVER_VERSION=15
+ARG PG_SERVER_VERSION=16
 
 # build-env
 FROM postgres:${PG_SERVER_VERSION}-bookworm as build-env
@@ -48,11 +48,13 @@ ARG PG_SERVER_PORT
 ENV PG_SERVER_PORT=${PG_SERVER_PORT:-5432}
 
 ARG PG_TIMETABLE_VERSION
-ENV PG_TIMETABLE_VERSION=${PG_TIMETABLE_VERSION:-5.3.0}
+ENV PG_TIMETABLE_VERSION=${PG_TIMETABLE_VERSION:-5.5.0}
 ARG SET_USER_VERSION
 ENV SET_USER_VERSION=${SET_USER_VERSION:-REL4_0_1}
 ARG LOGERRORS_VERSION
 ENV LOGERRORS_VERSION=${LOGERRORS_VERSION:-2.1.2}
+ARG PGVECTOR_VERSION
+ENV PGVECTOR_VERSION=${PGVECTOR_VERSION:-0.5.0}
 
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
@@ -74,14 +76,18 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     # pgaudit extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pgaudit \
     # pg_hint_plan extension
-    && export PG_PLAN_HINT_VERSION=$(echo $PG_SERVER_VERSION | sed 's/\.//') \
-       && wget --quiet -O /tmp/pg_hint_plan.zip \
-         https://github.com/ossc-db/pg_hint_plan/archive/PG${PG_PLAN_HINT_VERSION}.zip \
-       && unzip /tmp/pg_hint_plan.zip -d /tmp \
-       && cd /tmp/pg_hint_plan-PG${PG_PLAN_HINT_VERSION} \
-       && make && make install \
+    && if [ $(echo "$PG_SERVER_VERSION < 17" | /usr/bin/bc) = "1" ]; then \
+         export PG_PLAN_HINT_VERSION=$(echo $PG_SERVER_VERSION | sed 's/\.//') \
+         && wget --quiet -O /tmp/pg_hint_plan.zip \
+           https://github.com/ossc-db/pg_hint_plan/archive/PG${PG_PLAN_HINT_VERSION}.zip \
+         && unzip /tmp/pg_hint_plan.zip -d /tmp \
+         && cd /tmp/pg_hint_plan-PG${PG_PLAN_HINT_VERSION} \
+         && make && make install; \
+       fi \
     # powa extension
-    && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-powa \
+    && if [ $(echo "$PG_SERVER_VERSION < 17" | /usr/bin/bc) = "1" ]; then \
+         apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-powa; \
+       fi \
     # pg_auth_mon extension
     && if [ $(echo "$PG_SERVER_VERSION < 16" | /usr/bin/bc) = "1" ]; then \
         if [ "${PG_SERVER_VERSION}" = "9.6" ]; then \
@@ -92,8 +98,22 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
           && cd pg_auth_mon && USE_PGXS=1 make && USE_PGXS=1 make install; \
         fi \
       fi \
+    # citus extension
+    && if [ $(echo "$PG_SERVER_VERSION > 10" | /usr/bin/bc) = "1" ] && [ $(echo "$PG_SERVER_VERSION < 17" | /usr/bin/bc) = "1" ]; then \
+         if [ "${PG_SERVER_VERSION}" = "11" ]; then CITUS_VERSION="10.0"; \
+         elif [ "${PG_SERVER_VERSION}" = "15" ]; then CITUS_VERSION="12.1"; \
+         elif [ "${PG_SERVER_VERSION}" = "16" ]; then CITUS_VERSION="12.1"; \
+         fi \
+         && curl -s https://install.citusdata.com/community/deb.sh | bash \
+         && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-citus-"${CITUS_VERSION}"; \
+       fi \
     # hll extension
     && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-hll \
+    # topn extension
+    && if [ $(echo "$PG_SERVER_VERSION > 9.6" | /usr/bin/bc) = "1" ]; then \
+         curl -s https://install.citusdata.com/community/deb.sh | bash \
+         && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-topn; \
+       fi \
     # pg_timetable extension
     && wget https://github.com/cybertec-postgresql/pg_timetable/releases/download/v${PG_TIMETABLE_VERSION}/pg_timetable_${PG_TIMETABLE_VERSION}_Linux_x86_64.deb \
       && dpkg -i pg_timetable_${PG_TIMETABLE_VERSION}_Linux_x86_64.deb \
@@ -113,7 +133,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     # pg_stat_kcache extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-stat-kcache \
     # pg_wait_sampling extension
-    && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-wait-sampling \
+    && if [ $(echo "$PG_SERVER_VERSION < 17" | /usr/bin/bc) = "1" ]; then \
+         apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-wait-sampling; \
+       fi \
     # pg_qualstats extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pg-qualstats \
     # bg_mon extension
@@ -123,8 +145,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
     # pgextwlist extension
     && apt-get install --no-install-recommends -y postgresql-${PG_SERVER_VERSION}-pgextwlist \
     # set_user extension
-    && cd /tmp && git clone https://github.com/pgaudit/set_user.git \
-      && cd set_user && git checkout ${SET_USER_VERSION} && make USE_PGXS=1 && make USE_PGXS=1 install \
+    && if [ $(echo "$PG_SERVER_VERSION < 16" | /usr/bin/bc) = "1" ]; then \
+         cd /tmp && git clone https://github.com/pgaudit/set_user.git \
+         && cd set_user && git checkout ${SET_USER_VERSION} && make USE_PGXS=1 && make USE_PGXS=1 install; \
+       fi \
     # logerrors extension
     && if [ $(echo "$PG_SERVER_VERSION > 9.6" | /usr/bin/bc) = "1" ]; then \
          cd /tmp && wget -O logerrors.tar.gz https://github.com/munakoiso/logerrors/archive/v${LOGERRORS_VERSION}.tar.gz \
@@ -132,9 +156,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
          && USE_PGXS=1 make && USE_PGXS=1 make install; \
        fi \
     # px_ulid
-    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
-      && dpkg -i pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
-      && rm -rf pgx_ulid-v0.1.1-pg15-amd64-linux-gnu.deb \
+    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
+      && dpkg -i pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
+      && rm -rf pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
     # pgBackRest
     && apt-get install --no-install-recommends -y \
        pgbackrest zstd openssh-client \
@@ -157,7 +181,7 @@ EXPOSE ${PG_SERVER_PORT}
 RUN echo "#!/bin/bash" > /pg_start.sh && chmod a+x /pg_start.sh \
     && echo "chown -R postgres:postgres \${PGDATA} \${PG_UNIX_SOCKET_DIR}" \
       >> /pg_start.sh \
-    && printf "sudo -Eu postgres /usr/lib/postgresql/$(echo ${PG_SERVER_VERSION} | sed 's/beta.*//' | sed 's/rc.*//')/bin/postgres -D \${PGDATA} -k \${PG_UNIX_SOCKET_DIR}  -p \${PG_SERVER_PORT} >& /proc/1/fd/1 \n" \
+    && printf "sudo -Eu postgres /usr/lib/postgresql/$(echo ${PG_SERVER_VERSION} | sed 's/beta.*//' | sed 's/rc.*//')/bin/postgres -D \${PGDATA} -C shared_preload_libraries='ulid' -k \${PG_UNIX_SOCKET_DIR}  -p \${PG_SERVER_PORT} >& /proc/1/fd/1 \n" \
       >> /pg_start.sh \
     # Infinite sleep to allow restarting Postgres
     && echo "/bin/bash -c \"trap : TERM INT; sleep infinity & wait\"" \
