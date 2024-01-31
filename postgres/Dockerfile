@@ -156,7 +156,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
          && USE_PGXS=1 make && USE_PGXS=1 make install; \
        fi \
     # px_ulid
-    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.1/pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
+    && wget https://github.com/pksunkara/pgx_ulid/releases/download/v0.1.4/pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
       && dpkg -i pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
       && rm -rf pgx_ulid-v0.1.4-pg16-amd64-linux-gnu.deb \
     # pgBackRest
