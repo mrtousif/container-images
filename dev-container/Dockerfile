@@ -1,4 +1,4 @@
-FROM docker.io/bitnami/node:20
+FROM docker.io/bitnami/node:22
 
 WORKDIR /app
 
